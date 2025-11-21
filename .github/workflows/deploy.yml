@@ -50,8 +50,10 @@ jobs:
             --resource-group $RESOURCE_GROUP \
             --image $ACR_LOGIN_SERVER/$IMAGE_NAME:latest
 
-      - name: Test endpoint
+      - name: Test endpoint after deployment
         run: |
           echo "Aguardando app atualizar..."
-          sleep 15
-          curl -I https://$APP_NAME.$(az containerapp show --name $APP_NAME --resource-group $RESOURCE_GROUP --query properties.configuration.ingress.fqdn -o tsv)
+          sleep 20
+          ENDPOINT=$(az containerapp show --name $APP_NAME --resource-group $RESOURCE_GROUP --query properties.configuration.ingress.fqdn -o tsv)
+          echo "Testando endpoint https://$ENDPOINT"
+          curl -I https://$ENDPOINT

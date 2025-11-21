@@ -23,3 +23,4 @@ EXPOSE 8050
 
 # Comando para iniciar o dashboard
 CMD ["python", "app.py"]
+

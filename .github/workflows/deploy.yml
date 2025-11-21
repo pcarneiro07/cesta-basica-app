@@ -5,6 +5,11 @@ on:
     branches:
       - main
 
+permissions:
+  id-token: write
+  contents: read
+  packages: write
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -28,21 +33,27 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Build and Push Docker image
+    - name: Build and push image
       run: |
-        docker build -t ghcr.io/${{ github.repository }}/cesta-basica:latest .
-        docker push ghcr.io/${{ github.repository }}/cesta-basica:latest
+        IMAGE=ghcr.io/${{ github.repository }}/cesta-basica:latest
+        docker build -t $IMAGE .
+        docker push $IMAGE
+        echo "IMAGE_NAME=$IMAGE" >> $GITHUB_ENV
 
     - name: Deploy to Azure Container Apps
       uses: azure/container-apps-deploy-action@v1
       with:
-        app-name: ${{ secrets.AZURE_CONTAINERAPP_NAME }}
-        resource-group: rg-cesta-basica
-        image: ghcr.io/${{ github.repository }}/cesta-basica:latest
-        environment: ${{ secrets.AZURE_CONTAINERAPPS_ENVIRONMENT }}
+        azureCredentials: ${{ secrets.AZURE_CREDENTIALS }}
+        containerAppName: ${{ secrets.AZURE_CONTAINERAPP_NAME }}
+        resourceGroup: rg-cesta-basica
+        imageToDeploy: ${{ env.IMAGE_NAME }}
+        containerAppEnvironment: ${{ secrets.AZURE_CONTAINERAPPS_ENVIRONMENT }}
+        targetPort: 8050
+        ingress: external
 
     - name: Show deployed revision
-      run: az containerapp revision list \
-           --name ${{ secrets.AZURE_CONTAINERAPP_NAME }} \
-           --resource-group rg-cesta-basica \
-           -o table
+      run: |
+        az containerapp revision list \
+          --name ${{ secrets.AZURE_CONTAINERAPP_NAME }} \
+          --resource-group rg-cesta-basica \
+          -o table

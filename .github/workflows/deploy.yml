@@ -1,0 +1,57 @@
+name: Deploy to Azure Container Apps
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  ACR_NAME: acrcestabasica
+  ACR_LOGIN_SERVER: acrcestabasica.azurecr.io
+  APP_NAME: cesta-basica-app
+  RESOURCE_GROUP: rg-cesta-basica
+  IMAGE_NAME: cesta-basica
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Login to Azure using OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build Docker image
+        run: |
+          docker build -t $ACR_LOGIN_SERVER/$IMAGE_NAME:latest .
+
+      - name: Login to Azure Container Registry
+        run: |
+          az acr login --name $ACR_NAME
+
+      - name: Push image to ACR
+        run: |
+          docker push $ACR_LOGIN_SERVER/$IMAGE_NAME:latest
+
+      - name: Deploy to Azure Container Apps
+        run: |
+          az containerapp update \
+            --name $APP_NAME \
+            --resource-group $RESOURCE_GROUP \
+            --image $ACR_LOGIN_SERVER/$IMAGE_NAME:latest
+
+      - name: Test endpoint
+        run: |
+          echo "Aguardando app atualizar..."
+          sleep 15
+          curl -I https://$APP_NAME.$(az containerapp show --name $APP_NAME --resource-group $RESOURCE_GROUP --query properties.configuration.ingress.fqdn -o tsv)

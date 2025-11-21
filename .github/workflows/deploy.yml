@@ -5,38 +5,71 @@ on:
     branches:
       - main
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: pcarneiro07/cesta-basica-app
+
+permissions:
+  id-token: write
+  contents: read
+  packages: write
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Login to Azure using client secret
+      # ---------------------------
+      # LOGIN NO AZURE VIA OIDC
+      # ---------------------------
+      - name: Azure Login with Federated Identity
         uses: azure/login@v2
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          client-id: ${{ secrets.AZURE_CREDENTIALS.clientId }}
+          tenant-id: ${{ secrets.AZURE_CREDENTIALS.tenantId }}
+          subscription-id: ${{ secrets.AZURE_CREDENTIALS.subscriptionId }}
+          allow-no-subscriptions: true
 
-      - name: Build Docker image
+      # ---------------------------
+      # LOGIN NO GHCR
+      # ---------------------------
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # ---------------------------
+      # BUILD + PUSH COM TAG SHA
+      # ---------------------------
+      - name: Build and Push Docker image
         run: |
-          docker build -t cesta-basica:latest .
+          IMAGE_TAG=${GITHUB_SHA}
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
 
-      - name: Login to Azure Container Registry
-        run: |
-          az acr login --name acrcestabasica
+          docker build -t $REGISTRY/$IMAGE_NAME:$IMAGE_TAG .
+          docker push $REGISTRY/$IMAGE_NAME:$IMAGE_TAG
 
-      - name: Tag image
-        run: |
-          docker tag cesta-basica:latest acrcestabasica.azurecr.io/cesta-basica:latest
-
-      - name: Push image
-        run: |
-          docker push acrcestabasica.azurecr.io/cesta-basica:latest
-
-      - name: Deploy to Container Apps
+      # ---------------------------
+      # DEPLOY NOVA REVISÃO
+      # ---------------------------
+      - name: Deploy to Azure Container Apps
         run: |
           az containerapp update \
-            --name cesta-basica-app \
-            --resource-group rg-cesta-basica \
-            --image acrcestabasica.azurecr.io/cesta-basica:latest
+            --name ${{ secrets.AZURE_CONTAINERAPP_NAME }} \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --image $REGISTRY/$IMAGE_NAME:${{ env.IMAGE_TAG }}
+
+      # ---------------------------
+      # CONFIRMAÇÃO
+      # ---------------------------
+      - name: Show deployed revision
+        run: |
+          az containerapp revision list \
+            --name ${{ secrets.AZURE_CONTAINERAPP_NAME }} \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            -o table

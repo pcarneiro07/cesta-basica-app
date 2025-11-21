@@ -46,10 +46,11 @@ jobs:
         azureCredentials: ${{ secrets.AZURE_CREDENTIALS }}
         containerAppName: ${{ secrets.AZURE_CONTAINERAPP_NAME }}
         resourceGroup: rg-cesta-basica
-        imageToDeploy: ${{ env.IMAGE_NAME }}
         containerAppEnvironment: ${{ secrets.AZURE_CONTAINERAPPS_ENVIRONMENT }}
+        imageToDeploy: ${{ env.IMAGE_NAME }}
         targetPort: 8050
         ingress: external
+        createIfNotExists: false  # <========== 🚀 ESSA LINHA É A SALVAÇÃO
 
     - name: Show deployed revision
       run: |

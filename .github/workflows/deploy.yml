@@ -5,55 +5,38 @@ on:
     branches:
       - main
 
-permissions:
-  id-token: write
-  contents: read
-
-env:
-  ACR_NAME: acrcestabasica
-  ACR_LOGIN_SERVER: acrcestabasica.azurecr.io
-  APP_NAME: cesta-basica-app
-  RESOURCE_GROUP: rg-cesta-basica
-  IMAGE_NAME: cesta-basica
-
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Login to Azure using OIDC
+      - name: Login to Azure using client secret
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Build Docker image
         run: |
-          docker build -t $ACR_LOGIN_SERVER/$IMAGE_NAME:latest .
+          docker build -t cesta-basica:latest .
 
       - name: Login to Azure Container Registry
         run: |
-          az acr login --name $ACR_NAME
+          az acr login --name acrcestabasica
 
-      - name: Push image to ACR
+      - name: Tag image
         run: |
-          docker push $ACR_LOGIN_SERVER/$IMAGE_NAME:latest
+          docker tag cesta-basica:latest acrcestabasica.azurecr.io/cesta-basica:latest
 
-      - name: Deploy to Azure Container Apps
+      - name: Push image
+        run: |
+          docker push acrcestabasica.azurecr.io/cesta-basica:latest
+
+      - name: Deploy to Container Apps
         run: |
           az containerapp update \
-            --name $APP_NAME \
-            --resource-group $RESOURCE_GROUP \
-            --image $ACR_LOGIN_SERVER/$IMAGE_NAME:latest
-
-      - name: Test endpoint after deployment
-        run: |
-          echo "Aguardando app atualizar..."
-          sleep 20
-          ENDPOINT=$(az containerapp show --name $APP_NAME --resource-group $RESOURCE_GROUP --query properties.configuration.ingress.fqdn -o tsv)
-          echo "Testando endpoint https://$ENDPOINT"
-          curl -I https://$ENDPOINT
+            --name cesta-basica-app \
+            --resource-group rg-cesta-basica \
+            --image acrcestabasica.azurecr.io/cesta-basica:latest

@@ -12,15 +12,17 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copia todo o código do projeto para dentro do container
+# Copia o código do projeto
 COPY . .
 
-# Gera os artefatos (df_results.csv, df_analise_produtos.csv, xgb_model.json)
+# Copia explicitamente a pasta data (IMPORTANTE!)
+COPY data/ ./data/
+
+# Gera os artefatos durante o build
 RUN mkdir -p artifacts && python train_model.py
 
-# Expõe a porta do Dash (por padrão 8050)
+# Expõe a porta do Dash
 EXPOSE 8050
 
 # Comando para iniciar o dashboard
 CMD ["python", "app.py"]
-

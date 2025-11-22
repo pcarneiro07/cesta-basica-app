@@ -1,76 +1,125 @@
-========================================
-1. INSTALAR / ATIVAR AZURE CLI NO CODESPACE
-========================================
+# Dashboard Cesta Básica — Operações Essenciais (Azure Container Apps)
 
-# Atualizar lista de pacotes
-sudo apt-get update
+Este documento descreve **somente os comandos realmente necessários** para operar o dashboard no Azure, incluindo:
 
-# Instalar dependências (necessário para WSL/Codespaces)
-sudo apt-get install -y ca-certificates curl apt-transport-https lsb-release gnupg
+- Instalar Azure CLI no Codespace  
+- Autenticar  
+- Ligar o dashboard  
+- Desligar corretamente  
+- Verificar o status  
 
-# Baixar chave do repositório da Microsoft
-curl -sL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/microsoft.gpg
+---
 
-# Adicionar repositório do Azure CLI
-AZ_REPO=$(lsb_release -cs)
-echo "deb [arch=amd64] https://packages.microsoft.com/repos/azure-cli/ $AZ_REPO main" | sudo tee /etc/apt/sources.list.d/azure-cli.list
+## 1. Instalar Azure CLI (se o Codespace abrir sem `az`)
+Execute apenas se o comando `az` retornar “command not found”:
 
-# Instalar Azure CLI
-sudo apt-get update
-sudo apt-get install -y azure-cli
+```bash
+curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+Verificar:
 
-# Verificar instalação
+bash
+Copiar código
 az version
-
-
-========================================
-2. LOGIN NA AZURE
-========================================
-
+2. Autenticar no Azure
+bash
+Copiar código
 az login --use-device-code
+Confirmar assinatura ativa:
 
-
-========================================
-3. LIGAR O DASH (CONTAINER APP)
-========================================
-
-# Definir o número mínimo de réplicas como 1
-az containerapp update \
-  --name dashboard-cesta-basica \
-  --resource-group rg-cesta-basica \
-  --set template.scale.minReplicas=1
-
-# (Opcional) garantir que a revisão mais recente receba 100% do tráfego
-LATEST=$(az containerapp revision list \
-  --name dashboard-cesta-basica \
-  --resource-group rg-cesta-basica \
-  --query "[?properties.active].name | [-1]" \
-  -o tsv)
-
-az containerapp ingress traffic set \
-  --name dashboard-cesta-basica \
-  --resource-group rg-cesta-basica \
-  --revision-weight ${LATEST}=100
-
-
-========================================
-4. DESLIGAR O DASH (CONTAINER APP)
-========================================
-
-az containerapp update \
-  --name dashboard-cesta-basica \
-  --resource-group rg-cesta-basica \
-  --set template.scale.minReplicas=0
-
-
-========================================
-5. VERIFICAR O ESTADO DAS RÉPLICAS
-========================================
-
+bash
+Copiar código
+az account show
+3. Verificar as revisões e estado do Container App
+bash
+Copiar código
 az containerapp revision list \
   --name dashboard-cesta-basica \
   --resource-group rg-cesta-basica \
   -o table
+4. Ligar o Dashboard (subir 1 réplica)
+bash
+Copiar código
+az containerapp update \
+  --name dashboard-cesta-basica \
+  --resource-group rg-cesta-basica \
+  --set template.scale.minReplicas=1
+Confirmar:
 
-# Se todas as revisões estiverem Replicas=0 → APP DESLIGADO
-# Se existir uma revisão com Replicas=1 → APP LIGADO
+bash
+Copiar código
+az containerapp revision list \
+  --name dashboard-cesta-basica \
+  --resource-group rg-cesta-basica \
+  -o table
+Se Replicas = 1, o dashboard está online.
+
+Acessar:
+
+arduino
+Copiar código
+https://dashboard-cesta-basica.livelyisland-1ffcbd75.brazilsouth.azurecontainerapps.io/
+5. Desligar o Dashboard completamente
+5.1. Deixar o app no modo de revisão única (evita criar revisões novas ao ligar/desligar)
+bash
+Copiar código
+az containerapp revision set-mode \
+  --name dashboard-cesta-basica \
+  --resource-group rg-cesta-basica \
+  --mode single
+5.2. Definir réplica mínima como zero
+bash
+Copiar código
+az containerapp update \
+  --name dashboard-cesta-basica \
+  --resource-group rg-cesta-basica \
+  --set template.scale.minReplicas=0
+5.3. Desativar a revisão ativa (ESTE é o passo que desliga de verdade)
+Primeiro, veja quais revisões existem:
+
+bash
+Copiar código
+az containerapp revision list \
+  --name dashboard-cesta-basica \
+  --resource-group rg-cesta-basica \
+  -o table
+Depois, escolha a revisão com Replicas = 1 e desative:
+
+bash
+Copiar código
+az containerapp revision deactivate \
+  --name dashboard-cesta-basica \
+  --resource-group rg-cesta-basica \
+  --revision <NOME_DA_REVISAO>
+5.4. Verificar que está realmente desligado
+bash
+Copiar código
+az containerapp revision list \
+  --name dashboard-cesta-basica \
+  --resource-group rg-cesta-basica \
+  -o table
+O dashboard está desligado quando:
+
+ini
+Copiar código
+Replicas = 0
+E o link passa a retornar Error 404 — App Stopped.
+
+6. Resumo rápido (cola para uso diário)
+Ligar
+bash
+Copiar código
+az containerapp update -n dashboard-cesta-basica -g rg-cesta-basica --set template.scale.minReplicas=1
+Desligar
+bash
+Copiar código
+az containerapp revision set-mode -n dashboard-cesta-basica -g rg-cesta-basica --mode single
+az containerapp update -n dashboard-cesta-basica -g rg-cesta-basica --set template.scale.minReplicas=0
+az containerapp revision deactivate -n dashboard-cesta-basica -g rg-cesta-basica --revision <REVISION>
+Status
+bash
+Copiar código
+az containerapp revision list -n dashboard-cesta-basica -g rg-cesta-basica -o table
+7. URL do Dashboard
+arduino
+Copiar código
+https://dashboard-cesta-basica.livelyisland-1ffcbd75.brazilsouth.azurecontainerapps.io/

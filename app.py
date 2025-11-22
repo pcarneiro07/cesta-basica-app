@@ -4,20 +4,37 @@ import numpy as np
 from dash import Dash, dcc, html, Input, Output
 import plotly.graph_objects as go
 
-# ================================================================
-# 1. CARREGAR ARTEFATOS
-# ================================================================
-ART_DIR = "artifacts"
+# ===========================
+# BLOB STORAGE
+# ===========================
+from azure.storage.blob import BlobServiceClient
+from io import StringIO
 
-df_results = pd.read_csv(os.path.join(ART_DIR, "df_results.csv"))
-df_analise = pd.read_csv(os.path.join(ART_DIR, "df_analise_produtos.csv"))
+CONN_STR = os.getenv("BLOB_CONNECTION_STRING")
+
+if CONN_STR is None:
+    raise RuntimeError("❌ ERRO: Variável de ambiente BLOB_CONNECTION_STRING não encontrada!")
+
+blob_service = BlobServiceClient.from_connection_string(CONN_STR)
+container = "artifacts"
+
+def read_csv_from_blob(blob_name):
+    blob_client = blob_service.get_blob_client(container=container, blob=blob_name)
+    raw = blob_client.download_blob().readall()
+    return pd.read_csv(StringIO(raw.decode("utf-8")))
+
+# ===========================
+# CARREGAMENTO DOS ARQUIVOS
+# ===========================
+df_results = read_csv_from_blob("df_results.csv")
+df_analise = read_csv_from_blob("df_analise_produtos.csv")
 
 df_results["Data"] = pd.to_datetime(df_results["Data"])
 produtos = sorted(df_results["Produto"].unique())
 
-# ================================================================
-# 2. DESIGN SYSTEM CORPORATIVO
-# ================================================================
+# ===========================
+# DESIGN SYSTEM
+# ===========================
 COLORS = {
     "bg": "#F4F6FA",
     "card": "rgba(255,255,255,0.75)",
@@ -61,9 +78,9 @@ def metric_card(title, value, color=COLORS["primary"]):
         ]
     )
 
-# ================================================================
-# 3. DASHBOARD LAYOUT
-# ================================================================
+# ===========================
+# DASHBOARD
+# ===========================
 app = Dash(__name__)
 app.title = "Cesta Básica — Análise Inteligente"
 
@@ -71,19 +88,13 @@ app.layout = html.Div(
     style={"background": COLORS["bg"], "minHeight": "100vh", "padding": "40px"},
     children=[
 
-        # ===================== HERO HEADER =====================
         html.Div([
-            html.H1(
-                "📊 Monitor Inteligente de Preços da Cesta Básica",
-                style={"color": COLORS["text"], "marginBottom": "0px"}
-            ),
-            html.P(
-                "Análise preditiva, clusterização e acompanhamento de volatilidade dos produtos.",
-                style={"color": COLORS['subtext'], "fontSize": "18px"}
-            ),
+            html.H1("📊 Monitor Inteligente de Preços da Cesta Básica",
+                    style={"color": COLORS["text"], "marginBottom": "0px"}),
+            html.P("Análise preditiva, clusterização e acompanhamento de volatilidade dos produtos.",
+                   style={"color": COLORS['subtext'], "fontSize": "18px"}),
         ], style={"marginBottom": "35px"}),
 
-        # ===================== SELECTOR =====================
         glass_card([
             html.Label("Selecione o Produto:", style={"fontWeight": "600", "fontSize": "18px"}),
             dcc.Dropdown(
@@ -94,15 +105,14 @@ app.layout = html.Div(
             )
         ]),
 
-        # ===================== TABS =====================
         dcc.Tabs(
             id="abas",
             value="aba1",
             style={"marginTop": "20px"},
             children=[
-                dcc.Tab(label="📈 Evolução Real vs Previsto", value="aba1", className="custom-tab"),
-                dcc.Tab(label="🔎 Cluster & Estabilidade", value="aba2", className="custom-tab"),
-                dcc.Tab(label="📉 Métricas de Erro", value="aba3", className="custom-tab"),
+                dcc.Tab(label="📈 Evolução Real vs Previsto", value="aba1"),
+                dcc.Tab(label="🔎 Cluster & Estabilidade", value="aba2"),
+                dcc.Tab(label="📉 Métricas de Erro", value="aba3"),
             ],
         ),
 
@@ -110,9 +120,9 @@ app.layout = html.Div(
     ]
 )
 
-# ================================================================
-# 4. CALLBACK
-# ================================================================
+# ===========================
+# CALLBACK
+# ===========================
 @app.callback(
     Output("conteudo", "children"),
     Input("produto_dropdown", "value"),
@@ -122,9 +132,9 @@ def atualizar(produto, aba):
 
     df_p = df_results[df_results["Produto"] == produto]
 
-    # ============================================================
-    # ABA 1 — CHART PREMIUM
-    # ============================================================
+    # -------------------------
+    # ABA 1 — EVOLUÇÃO
+    # -------------------------
     if aba == "aba1":
 
         df_monthly = df_p.groupby(df_p["Data"].dt.to_period("M")).mean(numeric_only=True)
@@ -133,19 +143,15 @@ def atualizar(produto, aba):
         fig = go.Figure()
 
         fig.add_trace(go.Scatter(
-            x=df_monthly.index,
-            y=df_monthly["Real"],
-            mode="lines+markers",
-            name="Real",
+            x=df_monthly.index, y=df_monthly["Real"],
+            mode="lines+markers", name="Real",
             line=dict(color=COLORS["primary"], width=4),
             marker=dict(size=8)
         ))
 
         fig.add_trace(go.Scatter(
-            x=df_monthly.index,
-            y=df_monthly["Previsto"],
-            mode="lines+markers",
-            name="Previsto",
+            x=df_monthly.index, y=df_monthly["Previsto"],
+            mode="lines+markers", name="Previsto",
             line=dict(color=COLORS["accent"], width=4, dash="dot"),
             marker=dict(size=8)
         ))
@@ -161,9 +167,9 @@ def atualizar(produto, aba):
 
         return glass_card([dcc.Graph(figure=fig)])
 
-    # ============================================================
-    # ABA 2 — CLUSTER ANALYSIS
-    # ============================================================
+    # -------------------------
+    # ABA 2 — CLUSTER
+    # -------------------------
     if aba == "aba2":
 
         info = df_analise[df_analise["Produto"] == produto].iloc[0]
@@ -186,18 +192,18 @@ def atualizar(produto, aba):
             )
         ])
 
-    # ============================================================
-    # ABA 3 — METRICS
-    # ============================================================
+    # -------------------------
+    # ABA 3 — MÉTRICAS
+    # -------------------------
     if aba == "aba3":
-
-        mae = np.mean(np.abs(df_p["Real"] - df_p["Previsto"]))
-        mse = np.mean((df_p["Real"] - df_p["Previsto"]) ** 2)
+        mae  = np.mean(np.abs(df_p["Real"] - df_p["Previsto"]))
+        mse  = np.mean((df_p["Real"] - df_p["Previsto"]) ** 2)
         rmse = np.sqrt(mse)
         mape = np.mean(np.abs((df_p["Real"] - df_p["Previsto"]) / df_p["Real"])) * 100
 
         return glass_card([
-            html.H2("📉 Métricas de Erro do Modelo", style={"color": COLORS["text"], "marginBottom": "25px"}),
+            html.H2("📉 Métricas de Erro do Modelo",
+                    style={"color": COLORS["text"], "marginBottom": "25px"}),
 
             html.Div([
                 metric_card("MAE", f"{mae:.3f}"),
@@ -207,11 +213,10 @@ def atualizar(produto, aba):
             ], style={"display": "flex", "gap": "25px"})
         ])
 
-# ================================================================
+# ===========================
 if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
         port=8050,
         debug=False
     )
-

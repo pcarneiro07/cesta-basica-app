@@ -1,4 +1,3 @@
-
 import os
 import pandas as pd
 import numpy as np
@@ -24,7 +23,6 @@ os.makedirs(ARTIFACTS_DIR, exist_ok=True)
 print(f"Lendo base em: {DATA_PATH}")
 df = pd.read_excel(DATA_PATH)
 
-# Garante tipos
 df["Data_Coleta"] = pd.to_datetime(df["Data_Coleta"])
 df["Data_num"] = df["Data_Coleta"].astype("int64") // 10**9
 df["Produto_id"] = df["Produto"].astype("category").cat.codes
@@ -68,16 +66,13 @@ df_results = pd.DataFrame({
     "Previsto": y_pred
 })
 
-# Salva resultados de teste para o dashboard
 results_path = os.path.join(ARTIFACTS_DIR, "df_results.csv")
 df_results.to_csv(results_path, index=False, encoding="utf-8")
-print(f"Resultados de teste salvos em: {results_path}")
+print(f"Resultados salvos em: {results_path}")
 
 # ================================================================
-# 6. MÉTRICAS POR PRODUTO (MAPE, MAE, MSE, RMSE)
+# 6. MÉTRICAS POR PRODUTO
 # ================================================================
-print("Calculando métricas por produto...")
-
 def calc_mape(y_true, y_pred):
     return np.mean(np.abs((y_true - y_pred) / y_true)) * 100
 
@@ -93,7 +88,7 @@ metricas_prod = (
 )
 
 # ================================================================
-# 7. VARIAÇÃO DE PREÇO (DESVIO E RANGE)
+# 7. VARIAÇÃO DE PREÇO
 # ================================================================
 var_preco = (
     df.groupby("Produto")["Preco"]
@@ -105,10 +100,8 @@ df_analise = metricas_prod.merge(var_preco, on="Produto", how="left")
 df_analise = df_analise.dropna()
 
 # ================================================================
-# 8. PCA + KMEANS (3 CLUSTERS)
+# 8. PCA + KMEANS
 # ================================================================
-print("Rodando PCA + KMeans (3 clusters)...")
-
 X_feats = df_analise[["MAPE", "Desvio_Preco", "Range_Preco"]].values
 
 scaler = StandardScaler()
@@ -124,7 +117,6 @@ kmeans = KMeans(n_clusters=3, n_init=10, random_state=42)
 clusters = kmeans.fit_predict(X_pca)
 df_analise["cluster_id"] = clusters
 
-# Ordena clusters pelo MAPE médio (baixo → alto)
 cluster_order = (
     df_analise.groupby("cluster_id")["MAPE"]
     .mean()
@@ -142,16 +134,15 @@ cluster_label_map = {
 df_analise["Cluster_Label"] = df_analise["cluster_id"].map(cluster_label_map)
 
 # ================================================================
-# 9. SALVAR ARTEFATOS DE ANÁLISE
+# 9. SALVAR ARTEFATOS
 # ================================================================
 analise_path = os.path.join(ARTIFACTS_DIR, "df_analise_produtos.csv")
 df_analise.to_csv(analise_path, index=False, encoding="utf-8")
-print(f"Análise por produto (com clusters) salva em: {analise_path}")
 
-# Modelo treinado (para uso futuro em API / Azure Function)
-model_path = os.path.join(ARTIFACTS_DIR, "xgb_model.json")
-model.save_model(model_path)
-print(f"Modelo XGBoost salvo em: {model_path}")
+model.save_model(os.path.join(ARTIFACTS_DIR, "xgb_model.json"))
 
-print("\nTreino e geração de artefatos concluídos com sucesso.")
-print("→ df_results.csv, df_analise_produtos.csv e xgb_model.json gerados em 'artifacts/'.")
+print("\n✔ Treino completo!")
+print("→ artifacts gerados:")
+print(" - df_results.csv")
+print(" - df_analise_produtos.csv")
+print(" - xgb_model.json")

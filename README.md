@@ -208,8 +208,6 @@ O dashboard:
 
 # 10. GitHub Actions — Pipeline CI Completo
 
-Aqui está a descrição detalhada do SEU workflow real.
-
 ## Etapa 1 — Setup do Ambiente
 Executa:
 - checkout  
@@ -347,8 +345,6 @@ O projeto entrega:
 - Build automatizado com treinamento  
 - Dashboard em produção via Azure Container Apps  
 - Infraestrutura estável e reproduzível  
-- GitHub Actions real e funcional  
+- GitHub Actions simples e funcional  
 - Simplicidade operacional com minReplicas  
-
-Este README documenta tudo o que é necessário para manter e evoluir o projeto.
 

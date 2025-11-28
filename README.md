@@ -1,11 +1,70 @@
-Cesta Básica App: Análise e PrevisãoEste projeto implementa um dashboard interativo para análise da Cesta Básica, utilizando Machine Learning (XGBoost) para previsões e rodando 100% na Azure Container Apps.Arquitetura GeralO projeto utiliza uma arquitetura serverless e baseada em containers na Azure:GitHub (código fonte)Docker Build local (Codespaces)Azure Container Registry (ACR)cestabasica:latestAzure Blob Storagedata/ $\to$ dataset XLSXartifacts/ $\to$ modelo treinado + scalerAzure Container AppsExecuta o dashboard em Dash/Plotly.Carrega dados e artefatos do Blob Storage.Escalamento manual (ligar/desligar).Estrutura do RepositórioPlaintextcesta-basica-app/
+## Cesta Básica App: Análise e Previsão
+
+Este projeto implementa um dashboard interativo para análise da **Cesta Básica**, utilizando Machine Learning (XGBoost) para previsões e rodando 100% na **Azure Container Apps**.
+
+---
+
+### Arquitetura Geral
+
+O projeto utiliza uma arquitetura *serverless* e baseada em containers na Azure:
+
+* **GitHub (código fonte)**
+* **Docker Build local (Codespaces)**
+* **Azure Container Registry (ACR)**
+    * `cestabasica:latest`
+* **Azure Blob Storage**
+    * `data/` → dataset XLSX
+    * `artifacts/` → modelo treinado + scaler
+* **Azure Container Apps**
+    * Executa o dashboard em Dash/Plotly.
+    * Carrega dados e artefatos do Blob Storage.
+    * Escalamento manual (ligar/desligar).
+
+### Estrutura do Repositório
+
+```text
+cesta-basica-app/
 │ ├── app.py → Dashboard em Dash
 │ ├── train_model.py → Pipeline de treino + upload de artefatos
 │ ├── Dockerfile → Build do container
 │ ├── requirements.txt → Dependências da aplicação
 │ ├── data/ → Dataset local (somente para build local)
 │ └── artifacts/ → Artefatos locais (gerados no build)
-Tecnologias UtilizadasPython 3.11Dash / PlotlyScikit-LearnPandas / NumPyAzure CLIAzure Container Registry (ACR)Azure Blob StorageAzure Container AppsDockerGitHub Actions: Pipeline de Integração Contínua (CI)O fluxo de CI é acionado em todo push para a branch main ou em qualquer pull_request para a main. Ele garante a validade do ambiente, treina o modelo e verifica o build do Docker.Fluxo do CISetup do Ambiente: Instala o Python 3.11, faz o checkout, instala as dependências e valida as importações essenciais.Pipeline de Treino: Executa o script train_model.py (treino do modelo) e publica os artefatos de treino.Build da Imagem Docker: Faz o build da imagem Docker localmente, realiza um smoke test e publica os logs de histórico do Docker.Finalização: Confirma o sucesso de todo o pipeline de CI.Arquivo de Configuração do CIYAMLname: CI - Cesta Básica App
+Tecnologias Utilizadas
+Python 3.11
+
+Dash / Plotly
+
+Scikit-Learn
+
+Pandas / NumPy
+
+Azure CLI
+
+Azure Container Registry (ACR)
+
+Azure Blob Storage
+
+Azure Container Apps
+
+Docker
+
+GitHub Actions: Pipeline de Integração Contínua (CI)
+O fluxo de CI é acionado em todo push para a branch main ou em qualquer pull_request para a main. Ele garante a validade do ambiente, treina o modelo e verifica o build do Docker.
+
+Fluxo do CI
+Setup do Ambiente: Instala o Python 3.11, faz o checkout, instala as dependências e valida as importações essenciais.
+
+Pipeline de Treino: Executa o script train_model.py (treino do modelo) e publica os artefatos de treino.
+
+Build da Imagem Docker: Faz o build da imagem Docker localmente, realiza um smoke test e publica os logs de histórico do Docker.
+
+Finalização: Confirma o sucesso de todo o pipeline de CI.
+
+Arquivo de Configuração do CI
+YAML
+
+name: CI - Cesta Básica App
 
 on:
   push:
@@ -104,25 +163,105 @@ jobs:
     steps:
       - name: Mensagem final
         run: echo "Pipeline CI concluído com sucesso!"
-Deploy Manual — Fluxo Oficial do ProjetoEste é o fluxo oficial, testado e estável usado para implantar a aplicação.1. Preparar o ambienteInstalar Azure CLI (somente no Codespaces):Bashcurl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-Login:Bashaz login
-2. Build da imagem DockerBashdocker build -t cestabasica:latest .
-3. Envio para o Azure Container Registry (ACR)Substitua <ACR_NAME> pelo nome do seu registro:Bashdocker tag cestabasica:latest <ACR_NAME>.azurecr.io/cestabasica:latest
+Deploy Manual — Fluxo Oficial do Projeto
+Este é o fluxo oficial, testado e estável usado para implantar a aplicação.
+
+1. Preparar o ambiente
+Instalar Azure CLI (somente no Codespaces):
+
+Bash
+
+curl -sL [https://aka.ms/InstallAzureCLIDeb](https://aka.ms/InstallAzureCLIDeb) | sudo bash
+Login:
+
+Bash
+
+az login
+2. Build da imagem Docker
+Bash
+
+docker build -t cestabasica:latest .
+3. Envio para o Azure Container Registry (ACR)
+Substitua <ACR_NAME> pelo nome do seu registro:
+
+Bash
+
+docker tag cestabasica:latest <ACR_NAME>.azurecr.io/cestabasica:latest
 docker push <ACR_NAME>.azurecr.io/cestabasica:latest
-4. Atualizar o Container AppBashaz containerapp update \
+4. Atualizar o Container App
+Bash
+
+az containerapp update \
   --name dashboard-cesta-basica \
   --resource-group rg-cesta-basica \
   --image <ACR_NAME>.azurecr.io/cestabasica:latest
-Como Ligar e Desligar o DashboardO escalamento do Container App é ajustado via minReplicas.Ligar o dashboard (minReplicas=1)Bashaz containerapp update \
+Como Ligar e Desligar o Dashboard
+O escalamento do Container App é ajustado via minReplicas.
+
+Ligar o dashboard (minReplicas=1)
+
+Bash
+
+az containerapp update \
   --name dashboard-cesta-basica \
   --resource-group rg-cesta-basica \
   --set template.scale.minReplicas=1
-Desligar o dashboard (minReplicas=0)Bashaz containerapp update \
+Desligar o dashboard (minReplicas=0)
+
+Bash
+
+az containerapp update \
   --name dashboard-cesta-basica \
   --resource-group rg-cesta-basica \
   --set template.scale.minReplicas=0
-Verificar estado das revisõesBashaz containerapp revision list \
+Verificar estado das revisões
+
+Bash
+
+az containerapp revision list \
   --name dashboard-cesta-basica \
   --resource-group rg-cesta-basica \
   -o table
-Resultado: Replicas = 1 (ligado) / Replicas = 0 (desligado)Armazenamento na AzureA aplicação lê recursos e persiste artefatos de ML a partir do Azure Blob Storage. A conexão é feita via variável de ambiente: BLOB_CONNECTION_STRING.Container data/: Dataset XLSXContainer artifacts/: Modelo treinado, Scaler e outros artefatos.Treinamento Automático no BuildO script train_model.py é executado durante o docker build. Ele:Lê o XLSX (local ou do Blob).Treina o modelo.Salva artefatos localmente e realiza o upload para o Blob Storage.Dashboard FinalO Dashboard:Lê o dataset e artefatos do Blob.Aplica o modelo.Exibe análises em Dash/Plotly.Roda 100% dentro do Azure Container Apps.Atualiza automaticamente ao publicar nova imagem no ACR.ConclusãoEste projeto entrega:Pipeline completo (dados + modelo + deploy)Infraestrutura Azure funcionalDeploy estável em Container AppsReprodutibilidade via DockerSimplicidade operacional
+Resultado: Replicas = 1 (ligado) / Replicas = 0 (desligado)
+
+Armazenamento na Azure
+A aplicação lê recursos e persiste artefatos de ML a partir do Azure Blob Storage. A conexão é feita via variável de ambiente: BLOB_CONNECTION_STRING.
+
+Container data/: Dataset XLSX
+
+Container artifacts/: Modelo treinado, Scaler e outros artefatos.
+
+Treinamento Automático no Build
+O script train_model.py é executado durante o docker build. Ele:
+
+Lê o XLSX (local ou do Blob).
+
+Treina o modelo.
+
+Salva artefatos localmente e realiza o upload para o Blob Storage.
+
+Dashboard Final
+O Dashboard:
+
+Lê o dataset e artefatos do Blob.
+
+Aplica o modelo.
+
+Exibe análises em Dash/Plotly.
+
+Roda 100% dentro do Azure Container Apps.
+
+Atualiza automaticamente ao publicar nova imagem no ACR.
+
+Conclusão
+Este projeto entrega:
+
+Pipeline completo (dados + modelo + deploy)
+
+Infraestrutura Azure funcional
+
+Deploy estável em Container Apps
+
+Reprodutibilidade via Docker
+
+Simplicidade operacional

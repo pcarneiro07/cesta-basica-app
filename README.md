@@ -1,8 +1,4 @@
 # Cesta Básica App — README Completo
-
-Este documento descreve toda a arquitetura, fluxo de deploy, pipeline de CI e operação do projeto Cesta Básica App.  
-Inclui **todas as partes de código**, incluindo comandos Azure CLI, Docker e referências ao GitHub Actions, conforme solicitado.
-
 ---
 
 # 1. Arquitetura Geral

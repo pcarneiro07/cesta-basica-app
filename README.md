@@ -174,8 +174,6 @@ Permite auditoria e transparência do processo.
 - Apenas uma confirmação textual  
 - Indica sucesso completo da pipeline
 
-O fluxo não publica a imagem no ACR automaticamente, pois você optou por manter o deploy manual. Porém, toda a base CI está completamente funcional e validada.
-
 ---
 
 # Conclusão

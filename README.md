@@ -344,3 +344,4 @@ O projeto entrega:
 - GitHub Actions simples e funcional  
 - Simplicidade operacional com minReplicas  
 
+Link do Video ligando o Container de Aplicação: https://youtu.be/PYYaWN_SBX0
